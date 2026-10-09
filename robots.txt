@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://escofield.github.io/scrap-garments/sitemap.xml

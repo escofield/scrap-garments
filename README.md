@@ -1,5 +1,7 @@
 # Scrap Mechanic — Garment Collection Tracker
 
+[![Scrap Mechanic Garment Tracker](og-image.png)](https://escofield.github.io/scrap-garments/)
+
 A single-file, offline web tool for [Scrap Mechanic](https://store.steampowered.com/app/387990/Scrap_Mechanic/)
 that shows which character outfit pieces you've collected and exactly which ones you're still missing — grouped
 by category, by where they come from, and by rarity.

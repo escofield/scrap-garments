@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="DejaVu Sans, Segoe UI, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#141a22"/>
+      <stop offset="1" stop-color="#0e1218"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="8" fill="#ff8a3d"/>
+
+  <!-- title -->
+  <text x="72" y="166" font-size="74" font-weight="800" fill="#e7edf3">Scrap Mechanic</text>
+  <text x="72" y="252" font-size="74" font-weight="800" fill="#ff8a3d">Garment Tracker</text>
+
+  <!-- subtitle (kept clear of the ring on the right) -->
+  <text x="74" y="330" font-size="32" fill="#aeb9c6">See what you've collected — and</text>
+  <text x="74" y="374" font-size="32" fill="#aeb9c6">exactly what you're still missing.</text>
+  <text x="74" y="418" font-size="32" fill="#aeb9c6">By source &amp; rarity. No Steam ID.</text>
+
+  <!-- rarity legend dots -->
+  <g font-size="26" fill="#92a0b0">
+    <circle cx="86" cy="482" r="11" fill="#6eeb6e"/><text x="106" y="491">Common</text>
+    <circle cx="256" cy="482" r="11" fill="#9f49eb"/><text x="276" y="491">Rare</text>
+    <circle cx="376" cy="482" r="11" fill="#faf034"/><text x="396" y="491">Epic</text>
+    <circle cx="486" cy="482" r="11" fill="#1196d9"/><text x="506" y="491">Legendary</text>
+  </g>
+
+  <!-- url pill -->
+  <rect x="72" y="548" rx="10" width="560" height="52" fill="#1a212b" stroke="#2d3947"/>
+  <text x="96" y="582" font-size="27" fill="#ffb062" font-family="DejaVu Sans Mono, monospace">escofield.github.io/scrap-garments</text>
+
+  <!-- progress ring motif -->
+  <g transform="translate(1016,292)">
+    <circle r="118" fill="none" stroke="#2a3340" stroke-width="22"/>
+    <circle r="118" fill="none" stroke="#36c26e" stroke-width="22" stroke-linecap="round"
+            stroke-dasharray="645 741" transform="rotate(-90)"/>
+    <text x="0" y="-4" font-size="64" font-weight="800" fill="#e7edf3" text-anchor="middle">204</text>
+    <text x="0" y="36" font-size="23" fill="#92a0b0" text-anchor="middle" letter-spacing="2">GARMENTS</text>
+  </g>
+</svg>
