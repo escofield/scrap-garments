@@ -51,3 +51,7 @@ fire from a hand-made file (hence the achievement workaround above).
 
 Builds on the original [Scrap Mechanic Character Customisation Tool](https://gist.github.com/wisdom-in-snow/05bcb63c447d77fecc1b83efa7b32f27)
 and the [scrapmechanicunlocker](https://scrapmechanicunlocker.pages.dev/) web version. Not affiliated with Axolot Games.
+
+## License
+
+[MIT](LICENSE) — free to use, modify, and share.
