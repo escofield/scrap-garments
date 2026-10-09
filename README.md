@@ -4,9 +4,7 @@ A single-file, offline web tool for [Scrap Mechanic](https://store.steampowered.
 that shows which character outfit pieces you've collected and exactly which ones you're still missing — grouped
 by category, by where they come from, and by rarity.
 
-**[▶ Open the tracker](https://example.invalid/)** &nbsp;·&nbsp; everything runs locally in your browser; no data is uploaded.
-
-> Replace the link above with your GitHub Pages URL once it's live.
+**[▶ Open the tracker](https://escofield.github.io/scrap-garments/)** &nbsp;·&nbsp; everything runs locally in your browser; no data is uploaded.
 
 ## What it does
 
