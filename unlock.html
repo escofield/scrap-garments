@@ -1,0 +1,298 @@
+<h1>Scrap Mechanic Character Customisation Tool</h1>
+
+This all-in-one webpage will let you unlock outfits in Scrap Mechanic. Based on the description provided at <a href="http://web.archive.org/web/20220121180943/https://outfit-unlocker.sm.gbd.one/?popup=help">https://outfit-unlocker.sm.gbd.one/</a> which is no longer available. Just follow the steps below, they should be fairly self-explanatory. Everything happens locally in your browser - no Internet connection required.
+
+<h2>1. Game Data</h2>
+<p>
+    The list of unlockable items is stored in customization_options.json which can usually be found in the following location:
+</p>
+<p>
+    <b class="click-to-copy">%ProgramFiles(x86)%\Steam\steamapps\common\Scrap Mechanic\Data\Character\customization_options.json</b>
+</p>
+<p>
+    Find customization_options.json and load it here:
+    <input type="file" id="gamedata-file-selector" accept=".json" value="%appdata%">
+</p>
+<div id="gamedata-file-status"></div>
+
+<h2>2. Descriptions</h2>
+<p>
+    The descriptions of unlockable items is stored in CustomizationDescriptions.json which can be found in a language-specific location, such as:
+</p>
+<p>
+    <b class="click-to-copy">%ProgramFiles(x86)%\Steam\steamapps\common\Scrap Mechanic\Data\Gui\Language\English\CustomizationDescriptions.json</b>
+</p>
+<p>
+    Find CustomizationDescriptions.json for your language and load it here:
+    <input type="file" id="descriptions-file-selector" accept=".json" value="%appdata%">
+</p>
+<div id="descriptions-file-status"></div>
+
+<h2>3. Unlock File</h2>
+<p>
+    Your unlocked items are stored in a file called <b>unlock</b> inside a subdirectory named <b>User_&lt;STEAMID&gt;</b> where STEAMID is the 17-digit steam id for your Steam account. You should backup the unlock file to save your current progress.
+
+    These subdirectories can be found in the Scrap Mechanic user data directory, which is typically: 
+</p>
+<p>
+    <b class="click-to-copy">%appdata%\Axolot Games\Scrap Mechanic\User</b>
+</p>
+<p>
+    Find the unlock file and load it here:
+    <input type="file" id="unlock-file-selector" accept="unlock">
+</p>
+<div id="unlock-file-status"></div>
+
+<h2>4. Steam ID</h2>
+<p>
+    This is the 17-digit number from the previous step: <input type="text" id="steamid" value="12345678901234567"/>
+</p>
+<div id="steamid-status"></div>
+
+<h2>5. Lock/Unlock Items</h2>
+
+<ul id="unlock-list">
+    Load game data or unlock file to populate item list.
+</ul>
+
+<!-- Step 5. Download new unlock file. -->
+<h2>6. Generate new Unlock File</h2>
+
+<p>
+    Click  <input id="generate-unlock" type="submit" value="Generate"/> to create a new unlock file with your selection which can be copied over the one you selected in Step 2. Make sure you keep a copy of the original file so you can restore it if there's a problem or you change your mind later!
+</p>
+
+<style>
+    li {list-style-type:none}
+    .click-to-copy:hover:after { content: " (click to copy)" }
+    .green { color: green }
+    .red { color: red }
+</style>
+
+<script>
+    var steamid = 12345678901234567n;  // used to calculate CRC32 checksum
+    var gamedata     = [];  // UUIDS and item category/names generated from json file.
+    var descriptions = {};  // UUIDs to item description map
+    var unlockdata   = null;  // unlock file raw bytes
+    var unlockuuids  = [];  // unlock file uuid list
+
+    function check_all(checked) {
+        for (item of document.getElementsByClassName("list-item"))
+            item.checked = checked;
+    }
+
+    function update_item_list() {
+        var list = document.getElementById('unlock-list');
+        if (gamedata == []) return;
+        list.innerHTML='<li><input id="select-all" type="checkbox" onChange="check_all(this.checked)">All items</input></li>';
+        let category = "";
+        for (let item of gamedata) {
+            if (item.category != category) {
+                category = item.category;
+                list.innerHTML += `<h2>${category}</h2>`;
+            }
+            let checked = unlockuuids.includes(item.uuid)?"checked":"";
+            list.innerHTML += `<li><input class="list-item" id="${item.uuid}" value="${item.uuid}" type="checkbox" ${checked}>${descriptions[item.uuid] || item.name}</input></li>`;
+        }
+    }
+
+    // copy text on click when class="click-to-copy"
+    for (let el of document.getElementsByClassName("click-to-copy")) {
+        el.addEventListener('click', function(ev) {
+            navigator.clipboard.writeText(ev.target.innerText);
+        });
+    }
+
+    // CRC32 check!
+    const CRC_TABLE = Array(256);
+    for (let i = 0; i < 256; ++i) {
+        let code = i;
+        for (let j = 0; j < 8; ++j) {
+            code = (code & 0x01 ? 0xEDB88320 ^ (code >>> 1) : (code >>> 1));
+        }
+        CRC_TABLE[i] = code;
+    }
+    function CRC32(bytes) {
+        let crc = -1;
+        for (let i = 0; i < bytes.length; ++i) {
+            const code = bytes[i];
+            crc = CRC_TABLE[(code ^ crc) & 0xFF] ^ (crc >>> 8);
+        }
+        return (-1 ^ crc) >>> 0;
+    }
+
+
+    function verify_unlock_data() {
+        if (!unlockdata) return;
+        var bytes = new ArrayBuffer(unlockdata.byteLength); // copy crc+count+uuids.
+        new Uint8Array(bytes).set(new Uint8Array(unlockdata));
+        var dv = new DataView(bytes);
+        var checksum = dv.getUint32(4);
+        dv.setBigUint64(4, steamid, true); // overwrite checksum / count with steamid
+        var verify = CRC32(Array.from(new Uint8Array(bytes.slice(4))));
+        // update page
+        var status = document.getElementById('steamid-status');
+        status.innerText = (verify == checksum) ? "✔️ unlock file verified" : "❌ unlock file verification failed";
+        status.className = (verify == checksum) ? "green" : "red";
+    }
+
+
+    document.getElementById('gamedata-file-selector').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        var status = document.getElementById('gamedata-file-status');
+
+        if (!file) return; // no file selected, nothing to do.
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var contents = e.target.result;
+            contents = contents.replace(/\/\/.*/g, "");
+            try {
+                contents = JSON.parse(contents);
+                gamedata = [];
+                for (let category of contents["categoryList"]) {
+                    for (let item of category.options) {
+                        if ("male" in item && item.male.includes("Outfit")) {
+                            let outfit = item.male.split("/")[5]
+                                .replace("Outfit_", "")
+                                .replace("_", " ");
+                            gamedata.push({uuid:item.uuid, name:outfit, category:category.name});
+                        }
+                    }
+                }
+                status.innerText = `✔️ ${gamedata.length} uuids loaded!`;
+                status.className = "green";
+                update_item_list();
+            }
+            catch(err) {
+                status.innerText = "❌ error parsing game data: " + err;
+                status.className = "red";
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('descriptions-file-selector').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        var status = document.getElementById('descriptions-file-status');
+
+        if (!file) return; // no file selected, nothing to do.
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var contents = e.target.result;
+            contents = contents.replace(/\/\/.*/g, "");
+            try {
+                var temp = JSON.parse(contents);
+                for (key in temp) {
+                    descriptions[key] = temp[key].title || "???";
+                }
+                status.innerText = `✔️ descriptions loaded!`;
+                status.className = "green";
+                update_item_list();
+            }
+            catch(err) {
+                status.innerText = "❌ error parsing descriptions: " + err;
+                status.className = "red";
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    document.getElementById('unlock-file-selector').addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        var status = document.getElementById('unlock-file-status');
+
+        if (!file) return; // no file selected, nothing to do.
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var bytes = e.target.result;
+                var dv = new DataView(bytes);
+                if (bytes.byteLength < 12) throw "file too small";
+                var magic = dv.getUint32(0); // 0x0001
+                var count = dv.getUint32(8); // number of uuids in file
+                var uuids = new Uint8Array(bytes.slice(12)); // binary encoded uuids
+                if (magic != 1) throw "incorrect magic number";
+                if (count * 16 != uuids.byteLength) throw "incorrect file length";
+
+                unlockuuids = [];
+                // TODO: decode uuid list
+                for (let i = 0; i < count; i++) {
+                    uuid = Array.from(uuids.slice(i * 16, (i + 1) * 16))
+                        .map(x=>x.toString(16).padStart(2, 0)).join('');
+                    uuid = `${uuid.slice(0, 8)}-${uuid.slice(8,12)}-${uuid.slice(12,16)}-${uuid.slice(16,20)}-${uuid.slice(20,32)}`;
+                    unlockuuids.push(uuid);
+                }
+
+                // verify CRC32
+                unlockdata = bytes;
+                verify_unlock_data();
+                update_item_list();
+
+                status.innerText = "✔️ loaded unlock file";
+                status.className = "green";
+            }
+            catch(err) {
+                status.innerText = "❌ error parsing unlock file: " + err;
+                status.className = "red";
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    document.getElementById('steamid').addEventListener('change', function(e) {
+        steamid = BigInt(e.target.value);
+        verify_unlock_data();
+    });
+
+    document.getElementById('generate-unlock').addEventListener('click', function(e) {
+        if (gamedata.length == 0) {
+            alert("Error: game data has not been loaded (step 1)");
+            return;
+        }
+        if (unlockuuids.length == 0 ) {
+            alert("Warning: unlock file has not been loaded (step 3)");
+        }
+        if (steamid == 12345678901234567n) {
+            alert("Steam ID has not been set (step 4)")
+        }
+        // get uuid list
+        var uuids = [];
+        for (item of document.getElementsByClassName("list-item")) {
+            if (item.checked) {
+                uuids.push(item.value);
+            }
+        }
+        // allocate binary buffer
+        var bytes = new Uint8Array(uuids.length * 16 + 12);
+        var dv = new DataView(bytes.buffer);
+        // fill it with uuids
+        for (let i = 0; i < uuids.length; i++) {
+            var s = uuids[i].replaceAll('-', '');
+            for (let j = 0; j < 16; j++) {
+                var c = parseInt(s.slice(j * 2, j * 2 + 2), 16);
+                dv.setUint8(12 + i * 16 + j, c);
+            }
+        }
+        // write in steam id
+        dv.setBigUint64(4, steamid, true); // overwrite checksum / count with steamid
+        // calculate crc32
+        var checksum = CRC32(Array.from(new Uint8Array(bytes.slice(4))));
+        // write in magic number, crc and length.
+        dv.setUint32(0, 0x0001);
+        dv.setUint32(4, checksum);
+        dv.setUint32(8, uuids.length);
+        // download file!
+        var data = Array.from(bytes).map(c => String.fromCharCode(c)).join("");
+        var download = document.createElement('a');
+        download.setAttribute('href', 'data:application/octet-stream;base64,' + btoa(data));
+        download.setAttribute('download', 'unlock');
+        download.style.display = 'none';
+        document.body.appendChild(download);
+        download.click();
+        document.body.removeChild(download);
+    });
+
+</script>

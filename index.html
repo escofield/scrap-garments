@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scrap Mechanic Garment Collection Tracker</title>
+<style>
+  :root{
+    --bg:#11151c; --panel:#1a212b; --panel2:#222b38; --line:#2d3947;
+    --text:#e7edf3; --muted:#92a0b0; --accent:#ff8a3d; --accent2:#ffb062;
+    --owned:#36c26e; --missing:#ff5c6c; --warn:#ffcf5c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.5 "Segoe UI",system-ui,Roboto,Helvetica,Arial,sans-serif;}
+  a{color:var(--accent2)}
+  .wrap{max-width:1000px;margin:0 auto;padding:22px 18px 80px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:.3px}
+  h1 .sub{color:var(--accent);font-weight:600}
+  .lead{color:var(--muted);margin:0 0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;margin:0 0 16px}
+  .card h2{font-size:15px;text-transform:uppercase;letter-spacing:1px;color:var(--accent2);
+    margin:0 0 12px}
+  .note{background:var(--panel2);border-left:3px solid var(--accent);border-radius:6px;
+    padding:10px 14px;color:var(--muted);font-size:13.5px;margin:12px 0 0}
+  .note code{background:#0e1218;color:#cfe;padding:1px 5px;border-radius:4px;font-size:12.5px}
+  code.path{display:block;background:#0e1218;color:#9fe3c0;padding:8px 10px;border-radius:6px;
+    font-size:12.5px;word-break:break-all;margin:6px 0;cursor:pointer;border:1px solid var(--line)}
+  code.path:hover{border-color:var(--accent)}
+
+  .drop{display:block;border:2px dashed var(--line);border-radius:12px;padding:26px;text-align:center;
+    transition:.15s;cursor:pointer;background:var(--panel2)}
+  .drop.hover{border-color:var(--accent);background:#26303d}
+  .drop b{color:var(--accent2)}
+  .drop input{display:none}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  label.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+  input[type=text]{background:#0e1218;border:1px solid var(--line);color:var(--text);
+    border-radius:7px;padding:8px 10px;font:inherit;min-width:230px}
+  input[type=text]:focus{outline:none;border-color:var(--accent)}
+  .status{margin-top:10px;font-size:13.5px;min-height:1.2em}
+  .ok{color:var(--owned)} .bad{color:var(--missing)} .mut{color:var(--muted)}
+
+  /* dashboard */
+  #dash{display:none}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .ring{--p:0;width:120px;height:120px;border-radius:50%;flex:0 0 auto;
+    background:conic-gradient(var(--owned) calc(var(--p)*1%),#2a3340 0);
+    display:grid;place-items:center;position:relative}
+  .ring::before{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--panel)}
+  .ring .pct{position:relative;text-align:center}
+  .ring .pct b{font-size:26px;display:block}
+  .ring .pct span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+  .tiles{display:flex;gap:10px;flex-wrap:wrap;flex:1}
+  .tile{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;min-width:92px}
+  .tile b{font-size:22px;display:block}
+  .tile span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .tile.owned b{color:var(--owned)} .tile.missing b{color:var(--missing)} .tile.extra b{color:var(--warn)}
+
+  .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 2px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:transparent;color:var(--muted);border:0;padding:8px 14px;cursor:pointer;
+    font:inherit;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--accent);color:#1a1200;font-weight:600}
+  .btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;
+    padding:8px 14px;cursor:pointer;font:inherit}
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent);color:#1a1200;border-color:var(--accent);font-weight:600}
+  .grow{flex:1}
+
+  details.cat{border:1px solid var(--line);border-radius:10px;margin:0 0 10px;overflow:hidden;
+    background:var(--panel)}
+  details.cat>summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;
+    align-items:center;gap:12px;background:var(--panel2)}
+  details.cat>summary::-webkit-details-marker{display:none}
+  .cat .cname{font-weight:600;font-size:15px}
+  .cat .cbar{flex:1;height:7px;background:#2a3340;border-radius:4px;overflow:hidden;max-width:280px}
+  .cat .cbar i{display:block;height:100%;background:var(--owned)}
+  .cat .ccount{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+  .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:2px;padding:10px}
+  .item{display:flex;align-items:center;gap:9px;padding:7px 9px 7px 10px;border-radius:7px;overflow:hidden;
+    border-left:3px solid transparent}
+  .item:hover{background:var(--panel2)}
+  .item .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .item.o .dot{background:var(--owned);box-shadow:0 0 6px #36c26e88}
+  .item.m .dot{background:transparent;border:2px solid var(--missing);width:11px;height:11px}
+  .item.m{color:var(--muted)}
+  .item input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px;cursor:pointer}
+  .ach{margin-top:18px;padding:14px;border:1px solid var(--accent);border-radius:10px;background:#2a1f12;
+    display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+  .ach .achtxt{flex:1;min-width:250px;font-size:13.5px;color:var(--text)}
+  .ach .btn{flex:0 0 auto}
+  .empty{color:var(--muted);text-align:center;padding:30px}
+  .foot{color:var(--muted);font-size:12.5px;text-align:center;margin-top:24px}
+  .foot a{color:var(--accent2)}
+
+  /* sources */
+  .srclabel{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin:16px 0 8px}
+  .srcbreak{display:flex;gap:8px;flex-wrap:wrap}
+  .srcchip{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:20px;padding:6px 12px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  .srcchip:hover{border-color:var(--accent)}
+  .srcchip.on{border-color:var(--accent);background:#2a3340}
+  .srcchip .sd{width:10px;height:10px;border-radius:50%;flex:0 0 auto}
+  .srcchip b{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:600}
+  .srcchip b.has{color:var(--missing)}
+  .srcbadge{font-size:10.5px;padding:1px 8px;border-radius:10px;white-space:nowrap;
+    border:1px solid currentColor;opacity:.9;flex:0 0 auto}
+  .item .nm{flex:1;font-size:14px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Scrap Mechanic — <span class="sub">Garment Collection Tracker</span></h1>
+  <p class="lead">Load your <b>unlock</b> file to see which of the game's 204 outfit pieces you've
+     collected and exactly which ones you're still missing. Everything runs locally in your browser.</p>
+
+  <div class="card">
+    <h2>Load your unlock file</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="file">
+      <div><b>Click to choose</b> or drag your <b>unlock</b> file here</div>
+      <div class="mut" style="margin-top:6px;font-size:13px">No game data file needed — the full item list is built in.</div>
+    </label>
+
+    <div class="status" id="fstatus"></div>
+
+    <div class="note">
+      <b>Where is the unlock file?</b> It's in a folder named <code>User_&lt;STEAMID&gt;</code> in Scrap Mechanic's
+      user data — and that folder name <b>is</b> your 17-digit Steam ID.
+      <b>Windows:</b>
+      <code class="path">%appdata%\Axolot Games\Scrap Mechanic\User\User_&lt;STEAMID&gt;\unlock</code>
+      <b>Linux / Steam Deck (Proton):</b>
+      <code class="path">~/.steam/steam/steamapps/compatdata/387990/pfx/drive_c/users/steamuser/AppData/Roaming/Axolot Games/Scrap Mechanic/User/User_&lt;STEAMID&gt;/unlock</code>
+      Back up the file before changing anything.
+    </div>
+  </div>
+
+  <div class="card" id="dash">
+    <h2>Your collection</h2>
+    <div class="stats">
+      <div class="ring" id="ring"><div class="pct"><b id="pctn">0%</b><span>complete</span></div></div>
+      <div class="tiles">
+        <div class="tile owned"><b id="t-owned">0</b><span>Collected</span></div>
+        <div class="tile missing"><b id="t-missing">0</b><span>Missing</span></div>
+        <div class="tile"><b id="t-total">204</b><span>Total</span></div>
+        <div class="tile extra" id="t-extra-wrap" style="display:none"><b id="t-extra">0</b><span>Other / new</span></div>
+      </div>
+    </div>
+
+    <div class="srclabel">Where each garment comes from — <span style="text-transform:none">red = how many you're still missing. Click to filter.</span></div>
+    <div class="srcbreak" id="srcbreak"></div>
+
+    <div class="srclabel">Rarity — the Garment Box drop tier (coloured stripe on each item). <span style="text-transform:none">Click to filter.</span></div>
+    <div class="srcbreak" id="rarbreak"></div>
+
+    <div class="controls" style="margin-top:16px">
+      <div class="seg" id="filter">
+        <button data-f="all" class="on">All</button>
+        <button data-f="missing">Missing only</button>
+        <button data-f="owned">Collected only</button>
+      </div>
+      <input type="text" id="search" placeholder="Search garments…">
+      <div class="grow"></div>
+      <button class="btn" id="expand">Expand all</button>
+      <button class="btn" id="collapse">Collapse all</button>
+    </div>
+  </div>
+
+  <div id="list"></div>
+
+  <div class="card" id="advanced" style="display:none">
+    <h2>Generate a new unlock file (optional)</h2>
+    <p class="mut" style="margin:0 0 14px;font-size:13.5px">
+      Tick the garments you want unlocked above (collected ones start ticked), then generate a replacement
+      <b>unlock</b> file. Any other data already in your file (hair/face/default items, or pieces added by a
+      future update) is preserved automatically. <b>No Steam ID needed</b> — the new file is re-signed from the
+      one you loaded, so it stays valid for your account. Copy the downloaded file over the original — keep your backup!
+    </p>
+    <div class="row">
+      <button class="btn" id="check-all">Tick everything</button>
+      <button class="btn" id="check-owned">Only currently collected</button>
+      <div class="grow"></div>
+      <button class="btn primary" id="generate">Generate unlock file</button>
+    </div>
+    <div class="status" id="gstatus"></div>
+
+    <div class="ach">
+      <div class="achtxt">
+        <b>🏆 Stuck on the "Unlock every cosmetic item" achievement?</b>
+        Because <b>Welder Pants</b> has a broken rarity and never drops from a Garment Box, the achievement can't
+        complete the normal way. This makes an unlock file with <b>everything unlocked except one easy Common item</b>.
+        Copy it in, then craft a Garment Box at a Dressbot to collect that one last item — the game unlocks it through
+        normal play and the achievement fires.
+      </div>
+      <button class="btn primary" id="prep-ach">Prep achievement file</button>
+    </div>
+    <div class="status" id="achstatus"></div>
+  </div>
+
+  <div class="foot">
+    Built-in data covers Scrap Mechanic's 204 unlockable garments, with obtain-sources cross-referenced from the
+    <a href="https://scrapmechanic.fandom.com/wiki/Clothing" target="_blank" rel="noopener">official wiki</a>.
+    <b>Garment Box</b> items drop randomly when you craft at a Dressbot (Garment Box + Cotton);
+    <b>Balloon Chest</b> items are the Tactical set found in Underground balloon chests;
+    <b>Fan Pack DLC</b> items (Brilliant Rider, Logic Hero, Side Bang) are paid DLC and never drop in the world;
+    <b>Promotional / merch</b> sweatshirts come from codes/events.
+    <br><br>
+    <b>Rarity</b> (the coloured stripe on each item) is the Garment Box drop tier: Common / Rare / Epic roll from
+    boxes, fixed-source items are "Base", and quest &amp; finish rewards are Legendary. A few newer T-shirts aren't
+    in the wiki yet and default to Common; promo sweatshirts have no listed rarity (shown as "Unknown").
+    <br><br>
+    Note: editing the <code>unlock</code> file flips the "owned" flags so items show in the wardrobe, but it does not
+    replay the in-game events Steam watches, so collection achievements won't fire from a hand-made file.
+    <br><br>
+    In current game versions the old <code>customization_options.json</code> no longer exists — it's compiled into
+    the binary <code>Cache/Bundle/customization_data.cbo</code> — which is why this tool bakes the list in instead of asking for it.
+  </div>
+</div>
+
+<script>
+var GARMENTS = [
+  {u:"be0e65e5-a2e6-41ef-94d3-f8d4ac2f304e",n:"Applicator Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"46861beb-3adb-4ddb-92f7-0ef24716caa0",n:"Automotive Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"befa95e0-ba65-405f-848b-34e6bba08df8",n:"Brilliant Rider Hat",c:"Headwear",s:"Fan Pack DLC",r:"DLC"},
+  {u:"142ee54a-d0d9-42ff-b738-c8e22c7433c5",n:"Dekotora Hat",c:"Headwear",s:"Wonk Store",r:"None"},
+  {u:"5537aa76-7118-4a19-80fa-67ae4ad0a30e",n:"Delivery Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"397b1280-672d-48d0-831d-ffe2ac5c3a58",n:"Demolition Hat",c:"Headwear",s:"Garment Box",r:"Epic"},
+  {u:"0e746cfc-def3-40a1-8150-831a44940e28",n:"Duckie Hat",c:"Headwear",s:"Farmer Quests",r:"Legendary"},
+  {u:"8f0a036c-cda5-4b3b-aceb-0b4365ba60c9",n:"Engineer Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"9baebeb4-95dc-4ee6-a1fd-c44cc67ced04",n:"Farmer Hat",c:"Headwear",s:"Farmers Hideout",r:"None"},
+  {u:"66dac4fd-e8c1-460a-96e1-9ebc637dd1e3",n:"Farmhand Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"9af8aaa9-a7a6-49c7-a76f-3ac8502c4531",n:"Fire Jumper Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"e60f8e5a-5661-412d-b613-05ab1163b7e2",n:"Golf Hat",c:"Headwear",s:"Garment Box",r:"Common"},
+  {u:"b8c112eb-f317-43da-9846-0e4f411b9ff6",n:"Logic Hero Helmet",c:"Headwear",s:"Fan Pack DLC",r:"DLC"},
+  {u:"b1e6c5ce-3882-4242-83ad-6f5af940d9f1",n:"Lumberjack Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"92c83e5b-d277-46b7-9e62-e5e3d0abba5b",n:"Miner Helmet",c:"Headwear",s:"Wonk Store",r:"None"},
+  {u:"03efc1c8-fa65-49d0-a9a3-65195418c560",n:"Painter Hat",c:"Headwear",s:"Garment Box",r:"Epic"},
+  {u:"5476b4ca-d9b4-4667-9113-f5892e552c16",n:"Scrapper Hat",c:"Headwear",s:"Scrapper Quests",r:"Legendary"},
+  {u:"892ea60f-6e7c-4c9d-b4c2-0655b04fa61f",n:"Spacehiker Hat",c:"Headwear",s:"Garment Box",r:"Epic"},
+  {u:"6d8ecd00-0b01-48e9-900a-e222d3933515",n:"Stuntman Helmet",c:"Headwear",s:"Challenge Mode",r:"None"},
+  {u:"bcd66922-02e5-457c-ab40-5d8854fef80f",n:"Tactical Helmet",c:"Headwear",s:"Balloon Chest (Underground)",r:"None"},
+  {u:"803b41c1-a6f9-475c-953d-dd78c5ae99c4",n:"Technician Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"f6a7371e-eed9-44e9-a05a-1b7c0e178bd3",n:"Tuxedo Hat",c:"Headwear",s:"Garment Box",r:"Rare"},
+  {u:"be29a91b-d96d-458d-a986-94d4013ae8c6",n:"Welder Hat",c:"Headwear",s:"Garment Box",r:"Common"},
+  {u:"7a616a77-2c3f-4910-a6d9-adbea26a0408",n:"Woc Hat",c:"Headwear",s:"Farmer Quests",r:"Legendary"},
+  {u:"3b7a0ce5-0a99-4df4-80e7-b1967f51dd7b",n:"Side Bang",c:"Hair",s:"Fan Pack DLC",r:"DLC"},
+  {u:"de3abc13-31ea-42bc-93cc-3e2a24f306cd",n:"Axolot T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"f18fb8f9-57aa-488f-a4b9-4472977ed385",n:"Bearing T-Shirt",c:"Shirts",s:"Garment Box",r:"Rare"},
+  {u:"d5a20cbc-7dd8-447d-9321-4262c1133aaa",n:"Carrot Pattern T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"f5f95c53-2b2c-4af3-98fe-328c2c65910f",n:"Clam Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"b970dc1e-64eb-4444-b438-bb05bf213f7a",n:"Company T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"f9571933-d116-4974-a870-de174c8a9138",n:"Connections T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"32afd4e5-fe9a-4b43-83ac-610647a90013",n:"Control Freak T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"73fbbd12-fbca-4da5-92a4-802624002054",n:"Corn Pattern T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"5af09c1b-413c-4f23-a28a-e49521c13bec",n:"Cowboy Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"7cb6b060-d80a-473f-ab40-b260a34637d4",n:"Fantastic T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"1d5a2bd4-626c-4636-9cae-a68788bf964a",n:"Flame Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"14e5317d-8e3f-44d1-b8fd-1dd70f0bc5c8",n:"Fluffy Cloud Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"f01e782b-1619-4b28-ad94-0940dfcc9b1e",n:"Gas T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"10d5feda-2baf-444d-baa6-76d952e31f2f",n:"Logic Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"3534077b-ab28-446b-b875-63af2819e4cf",n:"Logical T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"d5cdc0d0-30ff-49d4-adac-e0342caf75be",n:"Need Lift T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"39325df6-fcb8-42b3-9dd9-94be00a53748",n:"Pizza Burger T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"d63dbfef-0b6c-44e4-9ac8-32788b8467a7",n:"Playing Wrong T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"808fc1ea-1205-41f3-88b8-4f08036bd587",n:"Purple Square Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"77e9bb3b-e99e-4c02-86fe-d92d0550029e",n:"Quack T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"3a2fa1bb-006c-4e35-a24e-a81cd296dfa4",n:"Rock T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"bce9f168-e972-4364-b3c6-22f014b3cc1a",n:"Scrap Muffin T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"32ae4da2-b41c-4d7a-9a46-151fa8fdaef5",n:"Seat T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"5b5dbb48-d6dc-4866-bbb9-5771984bedd8",n:"Sensitive T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"620a7ba4-ae9d-43d1-95bb-b0656eb4a368",n:"Teal Square Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"8b4e2978-02e8-4cd1-ab96-a9b151897e9d",n:"Team Banana T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"882d65f2-b9b1-4805-ae1c-9cd7d20e38ec",n:"Team Blueberry T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"9b3da27a-9c60-4577-9878-eb2b5fb8eaf9",n:"Team Broccoli T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"f17d12a7-071b-4fc1-b16d-f4bbfeac8ae8",n:"Team Tomato T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"800610e8-4a4c-453b-989e-886fa5d10e45",n:"Thin Stripe Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"de94b7cd-3070-41c0-bb03-d99de71d38ac",n:"Totebot Moon T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"d6570900-30d7-4b1f-af27-d57375ab07aa",n:"Totebot Pattern T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"ce977a4d-2cd3-4a0f-93ac-27add8156334",n:"Totem T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"c7ea0ea1-e55f-4d27-8b4b-efad3eb6d16a",n:"Vacation Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"8a16f5b7-7413-4e92-8454-720c0eed45bf",n:"Wide Stripe Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"8ac0f0ce-8627-43cd-a25f-a44fd9cbe498",n:"Woc Love T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"551eb70f-244c-4bb4-844c-b2f4ce11cb43",n:"Wow T-Shirt",c:"Shirts",s:"Garment Box",r:"Common"},
+  {u:"8c1eeca6-007c-4669-92f3-0c5dcbf9a5c2",n:"3 FPS Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"3819e7b1-8f43-4456-909c-ddf248f061a7",n:"Axolot Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"bb639dcf-69fd-41ea-a16c-0448876b341f",n:"Baby Woc Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"d8d103d1-7bb3-4d73-8396-c90fbbaf5bd6",n:"Brilliant Rider Sweat",c:"Sweatshirts",s:"Fan Pack DLC",r:"DLC"},
+  {u:"5ec489af-8e54-4670-a9a9-42f346e9b26b",n:"Cablebot Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"a2241fea-8cbf-421d-a6a5-29fb9fb628bd",n:"Camo Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"6101a225-030c-4b94-b243-ab6479e31007",n:"Old School Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"eca99152-dd65-49c0-a628-b607c1d1365a",n:"Pizza Burger Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"943fd392-2823-40e2-b659-578e6207b50f",n:"Runaway Creation Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"873a86fb-bbcb-4e72-bb79-0b8805a8700b",n:"Team Chili Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"66cb6bb3-5e62-42ef-a8c1-21366b58d62e",n:"Wallet Buster Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"1f23014f-3e48-4ef0-bb29-ecbfd66b145f",n:"Warehouse Sweat",c:"Sweatshirts",s:"Promotional / merch",r:"Unknown"},
+  {u:"9778b063-26ff-456f-820b-2a47e85e5a68",n:"Applicator Jacket",c:"Jackets",s:"Garment Box",r:"Rare"},
+  {u:"8fd35b59-b4d5-4378-adf7-44f02d9abd33",n:"Automotive Jacket",c:"Jackets",s:"Garment Box",r:"Rare"},
+  {u:"6e17d7aa-88a5-4df9-a62a-b6ce1fd61c41",n:"Brilliant Rider Jacket",c:"Jackets",s:"Fan Pack DLC",r:"DLC"},
+  {u:"ab442ca9-b6e8-4d7c-9044-9e9e6062a3ac",n:"Dekotora Jacket",c:"Jackets",s:"Wonk Store",r:"None"},
+  {u:"aa987d10-92d7-49ae-b09d-f6853e31d1da",n:"Delivery Jacket",c:"Jackets",s:"Garment Box",r:"Epic"},
+  {u:"a4ff886c-bfff-4b80-a916-70f5909afe02",n:"Demolition Jacket",c:"Jackets",s:"Garment Box",r:"Rare"},
+  {u:"c24f072a-fd74-4fe3-9897-8a69e953fe1f",n:"Duckie Jacket",c:"Jackets",s:"Farmer Quests",r:"Legendary"},
+  {u:"f5896dde-b3c9-4699-bf70-c9dfbded8c32",n:"Engineer Jacket",c:"Jackets",s:"Garment Box",r:"Common"},
+  {u:"f2c0c91f-4547-416e-b037-f56a8f04368c",n:"Farmer Jacket",c:"Jackets",s:"Farmers Hideout",r:"None"},
+  {u:"2dc14c75-c359-40e6-b11f-93cdc36c611a",n:"Farmhand Jacket",c:"Jackets",s:"Garment Box",r:"Common"},
+  {u:"193bf6c4-2aa1-490c-8122-a8a1a1171813",n:"Fire Jumper Jacket",c:"Jackets",s:"Garment Box",r:"Rare"},
+  {u:"afe61fa5-7083-411c-b2c0-5d24d9866f4b",n:"Golden Mechanic Jacket",c:"Jackets",s:"Finish the Game",r:"Legendary"},
+  {u:"325ab02a-f316-410f-8e80-ceec4d3b987a",n:"Golf Jacket",c:"Jackets",s:"Garment Box",r:"Common"},
+  {u:"01838c10-ecf8-4426-a61d-a955fa5bab4e",n:"Logic Hero Jacket",c:"Jackets",s:"Fan Pack DLC",r:"DLC"},
+  {u:"a03db277-9c10-4f75-a5ea-f2f9b24dde9e",n:"Lumberjack Jacket",c:"Jackets",s:"Garment Box",r:"Common"},
+  {u:"e50b3ceb-aa46-4f3e-8343-f28b6cbe34d0",n:"Mechanic Jacket",c:"Jackets",s:"Garment Box",r:"None"},
+  {u:"0c377cef-8c93-421a-8715-7366229830ab",n:"Miner Jacket",c:"Jackets",s:"Wonk Store",r:"None"},
+  {u:"0de3a02c-8aaa-4fb1-8ff6-a7519cc9c839",n:"Painter Jacket",c:"Jackets",s:"Garment Box",r:"Rare"},
+  {u:"5eb99d5e-eae5-43a9-aec2-443ed3609cc6",n:"Scrapper Jacket",c:"Jackets",s:"Scrapper Quests",r:"Legendary"},
+  {u:"0b678dd4-ee18-49d7-8617-6506142fcb1d",n:"Spacehiker Jacket",c:"Jackets",s:"Garment Box",r:"Epic"},
+  {u:"420ea3ba-f09b-44ce-9e4c-7040ef057a0c",n:"Stuntman Jacket",c:"Jackets",s:"Challenge Mode",r:"None"},
+  {u:"0e820ab3-3363-420a-ba79-ffad22cd0e05",n:"Tactical Jacket",c:"Jackets",s:"Balloon Chest (Underground)",r:"None"},
+  {u:"915a8a36-3bbc-427e-ae00-4954208053b9",n:"Technician Jacket",c:"Jackets",s:"Garment Box",r:"Common"},
+  {u:"fb53eba5-8183-4a44-91fb-df38e5694cce",n:"Tuxedo Jacket",c:"Jackets",s:"Garment Box",r:"Rare"},
+  {u:"b9983456-af44-4d00-a7db-a348ea512b25",n:"Welder Jacket",c:"Jackets",s:"Garment Box",r:"Common"},
+  {u:"26ea8bfc-3e79-4eb2-9ee0-ad1c59373c7b",n:"Woc Jacket",c:"Jackets",s:"Farmer Quests",r:"Legendary"},
+  {u:"ecdf2659-3a13-4296-98d9-2bd469daea8e",n:"Applicator Gloves",c:"Gloves",s:"Garment Box",r:"Rare"},
+  {u:"bc253f7e-bd45-4dde-b663-30d9353cfa73",n:"Automotive Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"d9ca797d-2bc0-4fc1-ac6e-8fb6c3a19fbe",n:"Brilliant Rider Gloves",c:"Gloves",s:"Fan Pack DLC",r:"DLC"},
+  {u:"d2d22576-7aa9-481d-8ae7-6a98f2673e74",n:"Dekotora Gloves",c:"Gloves",s:"Wonk Store",r:"None"},
+  {u:"454a36e7-faa2-4177-ae88-ceb2e110f201",n:"Delivery Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"cc0ec2c3-6974-4eb0-8fa7-d59b74756e11",n:"Demolition Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"8fd10e09-6f48-4f6b-9fcc-e82b56ab4111",n:"Duckie Gloves",c:"Gloves",s:"Farmer Quests",r:"Legendary"},
+  {u:"ce970a0e-4e3c-4473-9717-5e501b4aed76",n:"Engineer Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"7b0295df-7178-4ccb-a44d-f34d6b792c57",n:"Farmer Gloves",c:"Gloves",s:"Farmers Hideout",r:"None"},
+  {u:"6c65f00b-4663-444a-8f56-12a6fdfef350",n:"Farmhand Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"56389d13-3d86-4f7d-9e53-a23c663471c2",n:"Fire Jumper Gloves",c:"Gloves",s:"Garment Box",r:"Rare"},
+  {u:"1c62877a-2fd6-411e-a0a2-a8a3ab123a41",n:"Golden Mechanic Gloves",c:"Gloves",s:"Finish the Game",r:"Legendary"},
+  {u:"87f5ccf1-0813-4a52-93ef-d6fd37cb2dec",n:"Golf Gloves",c:"Gloves",s:"Garment Box",r:"Rare"},
+  {u:"75088898-a90f-4bed-a7d2-9cd8ea928d73",n:"Logic Hero Gloves",c:"Gloves",s:"Fan Pack DLC",r:"DLC"},
+  {u:"6bf46d8f-a8e9-4fb9-81d1-ea067318894a",n:"Lumberjack Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"30fd5d33-44f2-46c3-9cbd-b7d86c3ff198",n:"Mechanic Gloves",c:"Gloves",s:"Garment Box",r:"None"},
+  {u:"5810f6aa-d20d-40a2-9d78-878e32e237b0",n:"Miner Gloves",c:"Gloves",s:"Wonk Store",r:"None"},
+  {u:"e3572845-2e0b-40ec-a2c1-3f69aadb99ac",n:"Painter Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"61a50e7c-c454-4b0c-b32c-b322eb3f6ab1",n:"Scrapper Gloves",c:"Gloves",s:"Scrapper Quests",r:"Legendary"},
+  {u:"129c3452-4a5f-4b67-8c5f-dc13df551816",n:"Spacehiker Gloves",c:"Gloves",s:"Garment Box",r:"Epic"},
+  {u:"6413e3f6-1eb9-4bf4-8c17-88f32e31f458",n:"Stuntman Gloves",c:"Gloves",s:"Challenge Mode",r:"None"},
+  {u:"c5a0d89a-06ef-4ff7-875d-0407c8832a85",n:"Tactical Gloves",c:"Gloves",s:"Balloon Chest (Underground)",r:"None"},
+  {u:"5a05ccb7-dd1c-49c5-949c-45f63882fbb6",n:"Technician Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"e978338a-0a49-4a25-aadb-fe38e57daf43",n:"Tuxedo Gloves",c:"Gloves",s:"Garment Box",r:"Rare"},
+  {u:"fe616e8f-77ba-4044-aae0-decba5891f39",n:"Welder Gloves",c:"Gloves",s:"Garment Box",r:"Common"},
+  {u:"cc8af283-9b55-4c41-87fd-615992d5a117",n:"Woc Gloves",c:"Gloves",s:"Farmer Quests",r:"Legendary"},
+  {u:"9293d50d-4a60-4e5d-9712-33d04a5fbea2",n:"Applicator Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"cf9470ae-5fed-442f-9da2-573f1358c73c",n:"Automotive Pants",c:"Pants",s:"Garment Box",r:"Epic"},
+  {u:"ac83963e-75bc-4a80-aec4-b2ceba65e732",n:"Brilliant Rider Pants",c:"Pants",s:"Fan Pack DLC",r:"DLC"},
+  {u:"f866cbdb-d469-4a8e-8b83-d9c94bd27e5e",n:"Dekotora Pants",c:"Pants",s:"Wonk Store",r:"None"},
+  {u:"4aa28989-df88-462a-bead-1f7d976a1028",n:"Delivery Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"8151e8a4-bf6a-4a88-ae2c-b2f986ce7f90",n:"Demolition Pants",c:"Pants",s:"Garment Box",r:"Common"},
+  {u:"0953c2b8-8dd4-44d7-b1ca-458a74f0dbd9",n:"Duckie Pants",c:"Pants",s:"Farmer Quests",r:"Legendary"},
+  {u:"7d7b8545-c765-4b65-8770-714d1f19551f",n:"Engineer Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"4ed054a2-e354-4624-acd6-686b33d414a7",n:"Farmer Pants",c:"Pants",s:"Farmers Hideout",r:"None"},
+  {u:"b8220512-ea42-43c4-87a4-65bce36db395",n:"Farmhand Pants",c:"Pants",s:"Garment Box",r:"Common"},
+  {u:"56304985-df6f-470f-8885-b098af9683d8",n:"Fire Jumper Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"5f6e028a-ed28-4624-8e85-f6fa66e592f6",n:"Golden Mechanic Pants",c:"Pants",s:"Finish the Game",r:"Legendary"},
+  {u:"6ed381c7-df16-4407-8fec-056b5534757f",n:"Golf Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"623c821b-0231-4259-bc1d-b07d54b6bb5c",n:"Logic Hero Pants",c:"Pants",s:"Fan Pack DLC",r:"DLC"},
+  {u:"6c31a4ba-5571-4258-a4c2-81c243f9bbd5",n:"Lumberjack Pants",c:"Pants",s:"Garment Box",r:"Common"},
+  {u:"3351aec3-5664-4c68-b94e-8990f9d67685",n:"Mechanic Pants",c:"Pants",s:"Garment Box",r:"None"},
+  {u:"d6a28ec6-d044-41dd-880c-6edd00d18cc3",n:"Miner Pants",c:"Pants",s:"Wonk Store",r:"None"},
+  {u:"173bc4fd-405a-4d55-8158-b0768de0ced3",n:"Painter Pants",c:"Pants",s:"Garment Box",r:"Common"},
+  {u:"236aeca5-d247-45d0-9f52-8a8d68f80f4f",n:"Scrapper Pants",c:"Pants",s:"Scrapper Quests",r:"Legendary"},
+  {u:"cf477b02-5f1a-458f-b311-701f384d5493",n:"Spacehiker Pants",c:"Pants",s:"Garment Box",r:"Epic"},
+  {u:"472dcc0f-64c2-493a-abdf-39c3a5f4133f",n:"Stuntman Pants",c:"Pants",s:"Challenge Mode",r:"None"},
+  {u:"3c73faa0-a0c5-4404-ab7d-5d5a09ea5c51",n:"Tactical Pants",c:"Pants",s:"Balloon Chest (Underground)",r:"None"},
+  {u:"18fdfb7c-42ae-463c-8ee5-d2ce271c3ec8",n:"Technician Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"b8f6403d-ce51-4c55-9635-eb878f7f2aac",n:"Tuxedo Pants",c:"Pants",s:"Garment Box",r:"Rare"},
+  {u:"a45d1134-b419-4e81-b605-0d23abf9f90f",n:"Welder Pants",c:"Pants",s:"Garment Box",r:"None"},
+  {u:"2971e6a7-dd15-453e-a433-3adc41993f5c",n:"Woc Pants",c:"Pants",s:"Farmer Quests",r:"Legendary"},
+  {u:"583ba7e5-edbe-48e2-9ae5-fa939e7d1769",n:"Applicator Shoes",c:"Shoes",s:"Garment Box",r:"Rare"},
+  {u:"01b0634c-4294-4aa6-adf5-4e653ad6a782",n:"Automotive Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"1dce2803-b126-425a-a047-061d3a70f499",n:"Brilliant Rider Shoes",c:"Shoes",s:"Fan Pack DLC",r:"DLC"},
+  {u:"dc772b19-77a6-4cab-862e-d04fad56b50e",n:"Dekotora Shoes",c:"Shoes",s:"Wonk Store",r:"None"},
+  {u:"e192f135-21a2-4277-97ae-66693988797e",n:"Delivery Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"8ade4f22-4524-4399-8ab2-7e6d3a1a7fbd",n:"Demolition Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"c092af11-1ee1-49b9-8dc3-0ba3a9aeeb5c",n:"Duckie Shoes",c:"Shoes",s:"Farmer Quests",r:"Legendary"},
+  {u:"91136fa2-0484-48ce-9109-d5680b138393",n:"Engineer Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"78062d2a-1600-4144-80b6-435560cc0df6",n:"Farmer Shoes",c:"Shoes",s:"Farmers Hideout",r:"None"},
+  {u:"ed4defaf-a4d0-40e0-ad2b-915d67b0224b",n:"Farmhand Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"77f8e98c-0ea8-407a-b522-b7aecff9a3d0",n:"Fire Jumper Shoes",c:"Shoes",s:"Garment Box",r:"Rare"},
+  {u:"aece23b0-d692-4a15-ba4f-ac19386645df",n:"Golden Mechanic Shoes",c:"Shoes",s:"Finish the Game",r:"Legendary"},
+  {u:"6f864131-3d63-459a-a452-4033257400f0",n:"Golf Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"0da6dd76-ac7b-441c-bf57-549cebf31362",n:"Logic Hero Shoes",c:"Shoes",s:"Fan Pack DLC",r:"DLC"},
+  {u:"aa940318-ccff-4b77-916e-4d9c8eb330cc",n:"Lumberjack Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"ddac9cbf-422c-4523-97dd-3503d54d4628",n:"Mechanic Shoes",c:"Shoes",s:"Garment Box",r:"None"},
+  {u:"5d334138-ecf9-46f2-aaf3-202cbe6fb8b2",n:"Miner Shoes",c:"Shoes",s:"Wonk Store",r:"None"},
+  {u:"ef4d8dab-9bec-4d57-ad75-7102bdabd385",n:"Painter Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"465ef85e-47be-472e-aa72-25b4c870d305",n:"Scrapper Shoes",c:"Shoes",s:"Scrapper Quests",r:"Legendary"},
+  {u:"8c138432-d894-4d87-aff6-b84a8d7bc121",n:"Spacehiker Shoes",c:"Shoes",s:"Garment Box",r:"Epic"},
+  {u:"000487f4-7843-4f0a-8052-ff79f2072d1d",n:"Stuntman Shoes",c:"Shoes",s:"Challenge Mode",r:"None"},
+  {u:"e5df8a34-2631-4474-b4d9-efe3859af17a",n:"Tactical Shoes",c:"Shoes",s:"Balloon Chest (Underground)",r:"None"},
+  {u:"8de62bd5-c7b3-4b2c-8d30-f986dff5ef70",n:"Technician Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"d368493a-97da-4158-8794-96f2b7f44831",n:"Tuxedo Shoes",c:"Shoes",s:"Garment Box",r:"Rare"},
+  {u:"524cbf89-b045-47ae-bdec-b86f31db5142",n:"Welder Shoes",c:"Shoes",s:"Garment Box",r:"Common"},
+  {u:"818a4485-68f2-4a97-91b1-845ec70c6985",n:"Woc Shoes",c:"Shoes",s:"Farmer Quests",r:"Legendary"},
+  {u:"05553c50-bb4a-42bf-ae5e-ebd1b2412656",n:"Applicator Backpack",c:"Backpacks",s:"Garment Box",r:"Epic"},
+  {u:"d94f4713-dc51-4171-9e52-6b2a7de911c3",n:"Automotive Backpack",c:"Backpacks",s:"Garment Box",r:"Common"},
+  {u:"bd3f32a2-edc1-4350-82c7-838694149174",n:"Brilliant Rider Backpack",c:"Backpacks",s:"Fan Pack DLC",r:"DLC"},
+  {u:"87908d87-d384-40e0-bc60-bdcc0092d480",n:"Dekotora Backpack",c:"Backpacks",s:"Wonk Store",r:"None"},
+  {u:"e9f59ab5-d89f-4a5b-9153-8a21f244f362",n:"Delivery Backpack",c:"Backpacks",s:"Garment Box",r:"Common"},
+  {u:"d411a346-c766-473d-9c95-34a2d281c209",n:"Demolition Backpack",c:"Backpacks",s:"Garment Box",r:"Rare"},
+  {u:"53756aed-7057-43b7-b2e9-c51dbe4ac840",n:"Duckie Backpack",c:"Backpacks",s:"Farmer Quests",r:"Legendary"},
+  {u:"c4409a02-2a78-472e-bf3c-17f8e8e0445b",n:"Engineer Backpack",c:"Backpacks",s:"Garment Box",r:"Epic"},
+  {u:"94f1f243-6f36-4cd7-9098-52849655a45d",n:"Farmer Backpack",c:"Backpacks",s:"Farmers Hideout",r:"None"},
+  {u:"d27d80ee-d502-4715-9ecb-bca94eaaf714",n:"Farmhand Backpack",c:"Backpacks",s:"Garment Box",r:"Common"},
+  {u:"bc92b9e1-221a-48f6-9c7b-a56c5856c4ee",n:"Fire Jumper Backpack",c:"Backpacks",s:"Garment Box",r:"Rare"},
+  {u:"6f63b847-9736-471a-a9cd-e66e6be91f53",n:"Golden Mechanic Backpack",c:"Backpacks",s:"Finish the Game",r:"Legendary"},
+  {u:"c5044352-27a6-4bdc-a174-37018baa2332",n:"Golf Backpack",c:"Backpacks",s:"Garment Box",r:"Epic"},
+  {u:"234ee1fa-5335-46f4-a957-d3836884cc26",n:"Logic Hero Backpack",c:"Backpacks",s:"Fan Pack DLC",r:"DLC"},
+  {u:"8fa65b25-7ac9-4bb7-b9f9-6e2b7d43f916",n:"Lumberjack Backpack",c:"Backpacks",s:"Garment Box",r:"Common"},
+  {u:"3ad8fb46-cd26-4770-b928-790060b219d8",n:"Mechanic Backpack",c:"Backpacks",s:"Garment Box",r:"None"},
+  {u:"3ea882a5-2f64-4a50-9829-21e810876023",n:"Miner Backpack",c:"Backpacks",s:"Wonk Store",r:"None"},
+  {u:"4a0ca19d-50d5-416b-8137-0e827864354f",n:"Painter Backpack",c:"Backpacks",s:"Garment Box",r:"Rare"},
+  {u:"2a3fc190-3fff-4099-acd3-3db1d9d1e813",n:"Scrapper Backpack",c:"Backpacks",s:"Scrapper Quests",r:"Legendary"},
+  {u:"03f7f0de-23e4-4e6f-855d-108fe73347b2",n:"Spacehiker Backpack",c:"Backpacks",s:"Garment Box",r:"Epic"},
+  {u:"7ea91f3c-bf9b-42b6-b19b-3e8cd112c205",n:"Stuntman Backpack",c:"Backpacks",s:"Challenge Mode",r:"None"},
+  {u:"b850f437-3d7d-411a-a9dc-826d1e6cdd6c",n:"Tactical Backpack",c:"Backpacks",s:"Balloon Chest (Underground)",r:"None"},
+  {u:"e5ba292b-1772-463f-8010-b97c48bc9298",n:"Technician Backpack",c:"Backpacks",s:"Garment Box",r:"Common"},
+  {u:"ce43b912-5ada-4a83-9130-83d2a97204a5",n:"Tuxedo Backpack",c:"Backpacks",s:"Garment Box",r:"Rare"},
+  {u:"bb7fa6e2-a2d2-4fb3-863c-d38bd8b78025",n:"Welder Backpack",c:"Backpacks",s:"Garment Box",r:"Common"},
+  {u:"71eccd0e-2d37-479f-8e9f-1005440b9f6f",n:"Woc Backpack",c:"Backpacks",s:"Farmer Quests",r:"Legendary"}
+];
+// Non-collectible entries: the 5 empty-slot "None" selectors, plus the "Golden Mechanic"
+// full-outfit preset (8d444df5) which has no slot — not an individual achievable garment.
+var IGNORED_UUIDS = ["3f07f523-79b6-4020-884e-fa816d5ffbf0", "4fd6672e-27b6-42c6-8ba6-60837087a641", "63484a78-7869-485f-b957-ba750391df19", "64de6298-cbad-4393-84d2-e659a2abf4ef", "68500ade-1a22-46ca-af6e-ec70caf67b09", "8d444df5-9451-409e-bfed-9df1c14af29e"];
+
+var CAT_ORDER = ["Headwear","Hair","Shirts","Sweatshirts","Jackets","Gloves","Pants","Shoes","Backpacks","Full Outfits"];
+var KNOWN = new Set(GARMENTS.map(g=>g.u).concat(IGNORED_UUIDS));
+
+// source → display colour, listed in the order shown
+var SRC_ORDER = ["Garment Box","Balloon Chest (Underground)","Farmer Quests","Scrapper Quests",
+  "Wonk Store","Farmers Hideout","Challenge Mode","Finish the Game","Fan Pack DLC","Promotional / merch"];
+var SRC_COLOR = {
+  "Garment Box":"#ff8a3d","Balloon Chest (Underground)":"#1196d9","Farmer Quests":"#6eeb6e",
+  "Scrapper Quests":"#9fd94e","Wonk Store":"#3dd6c4","Farmers Hideout":"#c9a23d",
+  "Challenge Mode":"#eb6ea5","Finish the Game":"#faf034","Fan Pack DLC":"#b06eff","Promotional / merch":"#8aa0b0"
+};
+// compact labels for the per-item badge (full name shown on hover + in the filter chips)
+var SRC_SHORT = {
+  "Garment Box":"Garment Box","Balloon Chest (Underground)":"Underground","Farmer Quests":"Farmer Quest",
+  "Scrapper Quests":"Scrapper Quest","Wonk Store":"Wonk Store","Farmers Hideout":"Hideout",
+  "Challenge Mode":"Challenge","Finish the Game":"Finish Game","Fan Pack DLC":"DLC","Promotional / merch":"Promo"
+};
+// rarity (from the wiki) — Garment Box items roll Common/Rare/Epic; fixed-source items are "Base";
+// quest/finish rewards are Legendary. Shown as a coloured left stripe on each item.
+var RAR_ORDER = ["Common","Rare","Epic","Legendary","None","DLC","Unknown"];
+var RAR_COLOR = {Common:"#6eeb6e",Rare:"#9f49eb",Epic:"#faf034",Legendary:"#1196d9",None:"#8a94a0",DLC:"#c77dff",Unknown:"#5f6b78"};
+var RAR_LABEL = {Common:"Common",Rare:"Rare",Epic:"Epic",Legendary:"Legendary",None:"Base",DLC:"DLC",Unknown:"Unknown"};
+
+// ---- state ----
+var unlockdata = null;          // raw ArrayBuffer of loaded file
+var unlockuuids = [];           // all uuids found in file
+var ownedSet = new Set();       // uuids owned (from file)
+var checkState = {};            // uuid -> bool (for generate)
+var filter = "all";
+var sourceFilter = "all";       // "all" or a source name
+var rarityFilter = "all";       // "all" or a rarity name
+var query = "";
+
+// ---- CRC32 (same algorithm the game uses) ----
+var CRC_TABLE = Array(256);
+for (let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=(c&1?0xEDB88320^(c>>>1):(c>>>1));CRC_TABLE[i]=c;}
+function CRC32(bytes){let crc=-1;for(let i=0;i<bytes.length;i++)crc=CRC_TABLE[(bytes[i]^crc)&0xFF]^(crc>>>8);return (-1^crc)>>>0;}
+
+// ---- Re-sign a new unlock file using the LOADED file as a signature oracle ----
+// The game's checksum = CRC32( steamId(8 bytes, LE) ++ body ). We don't know the Steam ID,
+// but the loaded file gives us one valid (checksum, body) pair signed with it. Using the
+// linearity of CRC32 (zlib crc32_combine math) we recover the hidden signature state and
+// re-apply it to a new body — so a generated file stays valid for the same account, no ID needed.
+function gf2Times(mat,vec){let s=0,i=0;while(vec){if(vec&1)s^=mat[i];vec>>>=1;i++;}return s>>>0;}
+function gf2Square(sq,mat){for(let n=0;n<32;n++)sq[n]=gf2Times(mat,mat[n]);}
+function crcAdvance(crc1,lenBytes){            // advance a CRC by lenBytes of (implied) prefix
+  if(lenBytes<=0) return crc1>>>0;
+  let odd=new Array(32),even=new Array(32);
+  odd[0]=0xEDB88320>>>0;let row=1;for(let n=1;n<32;n++){odd[n]=row;row=(row<<1)>>>0;}
+  gf2Square(even,odd);gf2Square(odd,even);
+  do{
+    gf2Square(even,odd);
+    if(lenBytes&1)crc1=gf2Times(even,crc1);
+    lenBytes=Math.floor(lenBytes/2); if(lenBytes===0)break;
+    gf2Square(odd,even);
+    if(lenBytes&1)crc1=gf2Times(odd,crc1);
+    lenBytes=Math.floor(lenBytes/2);
+  }while(lenBytes);
+  return crc1>>>0;
+}
+function crcOpMatrix(nbytes){const M=new Array(32);for(let i=0;i<32;i++)M[i]=crcAdvance((1<<i)>>>0,nbytes);return M;}
+function gf2InvCols(M){                          // invert 32x32 GF(2) matrix given as columns
+  let a=new Array(32),id=new Array(32);
+  for(let r=0;r<32;r++){let row=0;for(let c=0;c<32;c++){if((M[c]>>>r)&1)row|=(1<<c);}a[r]=row>>>0;id[r]=(1<<r)>>>0;}
+  for(let col=0;col<32;col++){
+    let piv=-1;for(let r=col;r<32;r++){if((a[r]>>>col)&1){piv=r;break;}}
+    if(piv<0)throw "singular CRC matrix";
+    [a[col],a[piv]]=[a[piv],a[col]];[id[col],id[piv]]=[id[piv],id[col]];
+    for(let r=0;r<32;r++){if(r!==col&&((a[r]>>>col)&1)){a[r]^=a[col];id[r]^=id[col];}}
+  }
+  const Inv=new Array(32).fill(0);
+  for(let r=0;r<32;r++)for(let c=0;c<32;c++){if((id[r]>>>c)&1)Inv[c]|=(1<<r);}
+  return Inv.map(x=>x>>>0);
+}
+function resign(origChecksum, origBody, newBody){
+  const V=(origChecksum ^ CRC32(origBody))>>>0;                       // = Op(bodyLen)·signatureState
+  const P=gf2Times(gf2InvCols(crcOpMatrix(origBody.length)), V);      // recovered signature state
+  return (gf2Times(crcOpMatrix(newBody.length), P) ^ CRC32(newBody))>>>0;
+}
+
+function $(id){return document.getElementById(id);}
+
+// ---- file parsing ----
+function parseUnlock(buf){
+  var dv = new DataView(buf);
+  if (buf.byteLength < 12) throw "file too small to be an unlock file";
+  var magic = dv.getUint32(0);
+  var count = dv.getUint32(8);
+  var body = new Uint8Array(buf.slice(12));
+  if (magic != 1) throw "wrong magic number (not an unlock file?)";
+  if (count*16 != body.byteLength) throw "file length doesn't match item count";
+  var out = [];
+  for (let i=0;i<count;i++){
+    var h = Array.from(body.slice(i*16,(i+1)*16)).map(x=>x.toString(16).padStart(2,"0")).join("");
+    out.push(`${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20,32)}`);
+  }
+  return out;
+}
+
+function loadBuffer(buf){
+  try{
+    unlockuuids = parseUnlock(buf);
+    unlockdata = buf;
+    ownedSet = new Set(unlockuuids);
+    // init checkbox state: garment checked if currently owned
+    checkState = {};
+    for (let g of GARMENTS) checkState[g.u] = ownedSet.has(g.u);
+
+    $("fstatus").innerHTML = `<span class="ok">✔ Loaded — ${unlockuuids.length} items unlocked in this file.</span>`;
+
+    $("dash").style.display = "block";
+    $("advanced").style.display = "block";
+    render();
+  }catch(err){
+    $("fstatus").innerHTML = `<span class="bad">✘ Could not read file: ${err}</span>`;
+    $("dash").style.display = "none";
+    $("advanced").style.display = "none";
+    $("list").innerHTML = "";
+  }
+}
+
+// ---- rendering ----
+function render(){
+  // stats
+  var owned = GARMENTS.filter(g=>ownedSet.has(g.u)).length;
+  var total = GARMENTS.length;
+  var missing = total - owned;
+  var extra = unlockuuids.filter(u=>!KNOWN.has(u)).length;
+  var pct = total? Math.round(owned/total*100):0;
+
+  $("t-owned").textContent = owned;
+  $("t-missing").textContent = missing;
+  $("t-total").textContent = total;
+  $("pctn").textContent = pct+"%";
+  $("ring").style.setProperty("--p", pct);
+  if (extra>0){ $("t-extra-wrap").style.display="block"; $("t-extra").textContent = extra; }
+  else $("t-extra-wrap").style.display="none";
+
+  // ---- source breakdown chips ----
+  var perSrc = {};
+  for (let g of GARMENTS){
+    var o = perSrc[g.s] || (perSrc[g.s]={owned:0,total:0});
+    o.total++; if (ownedSet.has(g.u)) o.owned++;
+  }
+  var chips = `<button class="srcchip ${sourceFilter==="all"?"on":""}" data-s="all">All sources <b>${owned}/${total}</b></button>`;
+  for (let s of SRC_ORDER){
+    var o = perSrc[s]; if(!o) continue;
+    var miss = o.total - o.owned;
+    chips += `<button class="srcchip ${sourceFilter===s?"on":""}" data-s="${s}">
+        <span class="sd" style="background:${SRC_COLOR[s]}"></span>${s}
+        <b class="${miss>0?"has":""}">${miss>0?("−"+miss):"✓"}</b>
+      </button>`;
+  }
+  $("srcbreak").innerHTML = chips;
+
+  // ---- rarity breakdown chips ----
+  var perRar = {};
+  for (let g of GARMENTS){
+    var r = perRar[g.r] || (perRar[g.r]={owned:0,total:0});
+    r.total++; if (ownedSet.has(g.u)) r.owned++;
+  }
+  var rchips = `<button class="srcchip ${rarityFilter==="all"?"on":""}" data-r="all">All rarities <b>${owned}/${total}</b></button>`;
+  for (let r of RAR_ORDER){
+    var ro = perRar[r]; if(!ro) continue;
+    var rmiss = ro.total - ro.owned;
+    rchips += `<button class="srcchip ${rarityFilter===r?"on":""}" data-r="${r}">
+        <span class="sd" style="background:${RAR_COLOR[r]}"></span>${RAR_LABEL[r]}
+        <b class="${rmiss>0?"has":""}">${rmiss>0?("−"+rmiss):"✓"}</b>
+      </button>`;
+  }
+  $("rarbreak").innerHTML = rchips;
+
+  // group
+  var byCat = {};
+  for (let g of GARMENTS){ (byCat[g.c]=byCat[g.c]||[]).push(g); }
+
+  var q = query.trim().toLowerCase();
+  var html = "";
+  for (let cat of CAT_ORDER){
+    var items = byCat[cat]; if(!items) continue;
+    var visible = items.filter(g=>{
+      var own = ownedSet.has(g.u);
+      if (filter==="owned" && !own) return false;
+      if (filter==="missing" && own) return false;
+      if (sourceFilter!=="all" && g.s!==sourceFilter) return false;
+      if (rarityFilter!=="all" && g.r!==rarityFilter) return false;
+      if (q && !g.n.toLowerCase().includes(q)) return false;
+      return true;
+    });
+    if (!visible.length) continue;
+    var cOwned = items.filter(g=>ownedSet.has(g.u)).length;
+    var cPct = Math.round(cOwned/items.length*100);
+    var openAttr = (filter==="all" && sourceFilter==="all" && rarityFilter==="all" && !q) ? "" : "open";
+    html += `<details class="cat" ${openAttr}><summary>
+        <span class="cname">${cat}</span>
+        <span class="cbar"><i style="width:${cPct}%"></i></span>
+        <span class="ccount">${cOwned}/${items.length}</span>
+      </summary><div class="items">`;
+    for (let g of visible){
+      var own = ownedSet.has(g.u);
+      html += `<label class="item ${own?'o':'m'}" title="${g.n} — ${g.s} · ${RAR_LABEL[g.r]}" style="border-left-color:${RAR_COLOR[g.r]}">
+          <span class="dot"></span>
+          <span class="nm">${g.n}</span>
+          <span class="srcbadge" style="color:${SRC_COLOR[g.s]}">${SRC_SHORT[g.s]}</span>
+          <input type="checkbox" data-u="${g.u}" ${checkState[g.u]?"checked":""}>
+        </label>`;
+    }
+    html += `</div></details>`;
+  }
+  if (!html) html = `<div class="card empty">No garments match this filter/search.</div>`;
+  $("list").innerHTML = html;
+
+  // wire checkboxes
+  for (let cb of $("list").querySelectorAll("input[type=checkbox]")){
+    cb.addEventListener("change", e=>{ checkState[e.target.dataset.u] = e.target.checked; });
+  }
+}
+
+// ---- unlock file generation ----
+// Build + re-sign + download an unlock file from a uuid list; show `msg` (HTML) in element `statusId`.
+function downloadUnlock(uuids, msg, statusId){
+  var body = new Uint8Array(uuids.length*16);
+  for (let i=0;i<uuids.length;i++){
+    var s = uuids[i].replaceAll("-","");
+    for (let j=0;j<16;j++) body[i*16+j] = parseInt(s.slice(j*2,j*2+2),16);
+  }
+  // re-sign from the loaded file's signature — no Steam ID required
+  var origBody = new Uint8Array(unlockdata.slice(12));
+  var origChecksum = new DataView(unlockdata).getUint32(4);
+  var checksum;
+  try { checksum = resign(origChecksum, origBody, body); }
+  catch(err){ $(statusId).innerHTML = '<span class="bad">✘ Could not re-sign from this file: '+err+'</span>'; return; }
+
+  var bytes = new Uint8Array(uuids.length*16 + 12);
+  var dv = new DataView(bytes.buffer);
+  dv.setUint32(0, 1);
+  dv.setUint32(4, checksum);
+  dv.setUint32(8, uuids.length);
+  bytes.set(body, 12);
+
+  var data = Array.from(bytes).map(c=>String.fromCharCode(c)).join("");
+  var a = document.createElement("a");
+  a.href = "data:application/octet-stream;base64," + btoa(data);
+  a.download = "unlock";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  $(statusId).innerHTML = '<span class="ok">'+msg+'</span>';
+}
+
+function generate(){
+  if (!unlockdata){ $("gstatus").innerHTML = '<span class="bad">✘ Load your unlock file first.</span>'; return; }
+  // garments the user ticked + everything else already in the original file (non-garment data preserved)
+  var set = new Set(unlockuuids.filter(u=>!GARMENTS.some(g=>g.u===u))); // keep None/unknown/etc.
+  for (let g of GARMENTS) if (checkState[g.u]) set.add(g.u);
+  var uuids = Array.from(set);
+  downloadUnlock(uuids, `✔ Generated unlock file with ${uuids.length} items. Copy it over your original (keep the backup!).`, "gstatus");
+}
+
+// ---- one-click achievement helper ----
+// Everything unlocked EXCEPT one reliable Common Garment-Box item (the "bait"), so collecting that last
+// item in-game fires the game's "all cosmetics unlocked" event — the only way the achievement pops.
+function prepAchievement(){
+  if (!unlockdata){ $("achstatus").innerHTML = '<span class="bad">✘ Load your unlock file first.</span>'; return; }
+  var pool = GARMENTS.filter(g=>g.r==="Common" && g.s==="Garment Box" && g.c!=="Shirts");
+  var bait = pool.find(g=>g.n==="Golf Hat") || pool[0];
+  if (!bait){ $("achstatus").innerHTML = '<span class="bad">✘ Could not pick a bait item.</span>'; return; }
+  var set = new Set(unlockuuids.filter(u=>!GARMENTS.some(g=>g.u===u))); // preserve non-garment data
+  for (let g of GARMENTS) if (g.u!==bait.u) set.add(g.u);               // everything except the bait
+  downloadUnlock(Array.from(set),
+    `✔ Done — everything is unlocked except <b>${bait.n}</b>. Back up your current file, copy this one over it, launch the game, and craft a Garment Box at a Dressbot. It will give you the ${bait.n} (the only locked item), and the "Unlock every cosmetic item" achievement should fire.`,
+    "achstatus");
+}
+
+// ---- events ----
+var fileEl = $("file"), drop = $("drop");
+fileEl.addEventListener("change", e=>{ var f=e.target.files[0]; if(f) readFile(f); });
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("hover");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("hover");}));
+drop.addEventListener("drop", e=>{ var f=e.dataTransfer.files[0]; if(f) readFile(f); });
+function readFile(f){ var r=new FileReader(); r.onload=ev=>loadBuffer(ev.target.result); r.readAsArrayBuffer(f); }
+
+$("filter").addEventListener("click", e=>{
+  if (e.target.tagName!=="BUTTON") return;
+  filter = e.target.dataset.f;
+  for (let b of $("filter").children) b.classList.toggle("on", b===e.target);
+  render();
+});
+$("srcbreak").addEventListener("click", e=>{
+  var chip = e.target.closest(".srcchip"); if(!chip) return;
+  sourceFilter = chip.dataset.s;
+  render();
+});
+$("rarbreak").addEventListener("click", e=>{
+  var chip = e.target.closest(".srcchip"); if(!chip) return;
+  rarityFilter = chip.dataset.r;
+  render();
+});
+$("search").addEventListener("input", e=>{ query=e.target.value; render(); });
+$("expand").addEventListener("click", ()=>{ for(let d of document.querySelectorAll("details.cat")) d.open=true; });
+$("collapse").addEventListener("click", ()=>{ for(let d of document.querySelectorAll("details.cat")) d.open=false; });
+$("check-all").addEventListener("click", ()=>{ for(let g of GARMENTS) checkState[g.u]=true; render(); });
+$("check-owned").addEventListener("click", ()=>{ for(let g of GARMENTS) checkState[g.u]=ownedSet.has(g.u); render(); });
+$("generate").addEventListener("click", generate);
+$("prep-ach").addEventListener("click", prepAchievement);
+
+for (let el of document.querySelectorAll(".path")){
+  el.addEventListener("click", ()=>{ navigator.clipboard && navigator.clipboard.writeText(el.innerText); });
+}
+</script>
+</body>
+</html>
